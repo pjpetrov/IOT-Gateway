@@ -2,6 +2,9 @@ FROM python:3
 
 # create non-root user
 RUN adduser --disabled-password --gecos '' uwsgi
+RUN adduser --disabled-password --gecos '' nginx
+
+RUN pip install flask
 
 # setup uWSGI
 RUN pip install uwsgi
@@ -16,8 +19,9 @@ RUN wget http://nginx.org/keys/nginx_signing.key \
 
 RUN gpasswd -a uwsgi www-data
 RUN gpasswd -a nginx www-data
+RUN mkdir -p /var/cache/nginx
 
-RUN chown -R nginx /var/log/nginx /var/cache/nginx/ \
+RUN chown -R nginx /var/log/nginx /var/lib/nginx /var/cache/nginx/ \
 	&& touch /var/run/nginx.pid \
 	&& chown -R nginx /var/run/nginx.pid \
 	&& mkdir /var/run/uwsgi && touch /var/run/uwsgi/socket.sock \
@@ -29,9 +33,8 @@ EXPOSE 8080
 
 # make NGINX run in foreground
 RUN echo "daemon off;" >> /etc/nginx/nginx.conf
+RUN cat > /etc/nginx/sites-available/default
 # update NGINX config
-RUN rm /etc/nginx/conf.d/default.conf
-# copy the modified Nginx conf
 COPY docker-config/nginx.conf /etc/nginx/conf.d/
 # copy uWSGI ini file to enable default dynamic uwsgi process number
 COPY docker-config/uwsgi.ini /etc/uwsgi/
@@ -39,6 +42,7 @@ COPY docker-config/uwsgi.ini /etc/uwsgi/
 # custom Supervisord config
 COPY docker-config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker-config/supervisord-kill.py /usr/bin/
+COPY app/ /app/
 
 CMD ["/usr/bin/supervisord"]
 
