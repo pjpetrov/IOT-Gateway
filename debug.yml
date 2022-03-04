@@ -1,0 +1,10 @@
+version: "3.9"
+services:
+  web:
+    build: .
+    ports:
+      - "88:80"
+    entrypoint: python3 /app/main.py
+
+  redis:
+    image: "redis:bullseye"
