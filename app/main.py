@@ -18,6 +18,8 @@ cache.config_set('notify-keyspace-events', 'Exsg')
 pubsub.psubscribe(**{"__key*__:*": event_handler})
 pubsub.run_in_thread(sleep_time=0.01)
 
+qs = []
+
 @app.route("/add/<target>/<message>")
 def add(target, message):
     cache.setex(target, datetime.timedelta(seconds=10), value=message)
@@ -42,15 +44,26 @@ def websocket_test():
 def dump_redis():
     return render_template('dump_redis.html')
 
-qs = []
+@app.route("/client/<id>")
+def client(id):
+    return render_template('client.html', id=id)
+
+@sock.route("/redis/<id>")
+def redis_id(ws, id):
+    q = queue.Queue()
+    qs.append(q)
+    while True:
+        item = q.get();
+        if item == None:
+            break
+        if cache.exists(id):
+            ws.send(cache.get(id).decode("utf-8"))
+        cache.delete(id)
 
 @sock.route("/redis")
 def redis_event(ws):
     q = queue.Queue()
     qs.append(q)
-    #data = ws.receive()
-    #if data == "disconnect":
-    #    return
     while True:
         item = q.get();
         if item == None:
@@ -58,8 +71,6 @@ def redis_event(ws):
         data = dumpRedis()
         try:
             ws.send(data)
-            #if ws.receive() == "disconnect":
-            #    break
         except:
             break
 
@@ -72,7 +83,6 @@ def dumpRedis():
     for key in cache.scan_iter():
         redisData += key.decode("utf-8")  + '->' + cache.get(key).decode("utf-8")  + '<br>'
     return redisData
-    
 
 @sock.route('/test')
 def test_event(ws):

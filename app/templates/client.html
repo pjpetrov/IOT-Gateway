@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Cmd: {{id}}</title>
+  </head>
+  <body>
+    <h1>Command for {{id}}</h1>
+    <div id="log"></div>
+    <br>
+    <script>
+      const log = (text, color) => {
+        document.getElementById('log').innerHTML = `<span style="color: ${color}">${text}</span><br>`;
+      };
+      var socket = new WebSocket('ws://' + location.host + '/redis/{{id}}');
+      socket.onmessage = function(ev) {
+        log(ev.data, 'blue');
+      };
+
+      socket.onopen = function(e) {
+      }
+      socket.onclose = function(e) {
+          socket = new WebSocket('ws://' + location.host + '/redis/' + {{id}});
+      }
+
+    </script>
+  </body>
+</html>
+
