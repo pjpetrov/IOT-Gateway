@@ -14,6 +14,7 @@
       var socket = new WebSocket('ws://' + location.host + '/redis');
       socket.onmessage = function(ev) {
         log(ev.data, 'blue');
+        socket.send('None');
       };
 
       socket.onopen = function(e) {
