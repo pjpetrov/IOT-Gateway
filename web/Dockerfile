@@ -32,13 +32,10 @@ EXPOSE 5000
 RUN echo "daemon off;" >> /etc/nginx/nginx.conf
 RUN cat > /etc/nginx/http.d/default
 # update NGINX config
-COPY docker-config/nginx.conf /etc/nginx/http.d/
-# copy uWSGI ini file to enable default dynamic uwsgi process number
-COPY docker-config/uwsgi.ini /etc/uwsgi/
+COPY config/nginx.conf /etc/nginx/http.d/
 
 # custom Supervisord config
-COPY docker-config/supervisord.conf /etc/supervisord.conf
-COPY docker-config/supervisord-kill.py /usr/bin/
+COPY config/supervisord.conf /etc/supervisord.conf
 COPY app/ /app/
 
 CMD ["/usr/bin/supervisord"]
