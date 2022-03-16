@@ -1,0 +1,11 @@
+FROM alpine
+
+RUN apk add python3 py3-pip 
+
+# create non-root user
+RUN pip install mongomock pymongo
+
+COPY app/ /app/
+
+CMD ["/usr/bin/python3", "/app/database_test.py"]
+
