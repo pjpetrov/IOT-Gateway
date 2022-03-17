@@ -1,11 +1,10 @@
 FROM alpine
 
-RUN apk add python3 py3-pip 
+RUN apk add python3 py3-pip py-redis
 
 # create non-root user
-RUN pip install mongomock pymongo
+RUN pip install mongomock pymongo python-telegram-bot
 
 COPY app/ /app/
-
-CMD ["/usr/bin/python3", "/app/database_test.py"]
+CMD ["/usr/bin/python3", "-m", "unittest", "discover", "-s", "/app/", "-p", "*_test.py"]
 
