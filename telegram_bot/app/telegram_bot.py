@@ -158,7 +158,8 @@ class TelegramBot(object):
         self.sendText(context, 'Select command: ', userId)
 
     def commandReport(self, update, context, title):
-        self.sendText(context, self._users.getName(update.effective_user.id) + " executes: " + title, self._users.getAdminId())
+        if not self._users.isAdmin(update.effective_user.id):
+            self.sendText(context, self._users.getName(update.effective_user.id) + " executes: " + title, self._users.getAdminId())
 
     def users(self, update, context):
         if not self._users.isAdmin(update.effective_user.id):
@@ -176,14 +177,19 @@ class TelegramBot(object):
         return False
 
     def executeCommand(self, update, context):
-        cmdString = context.args[0]
+        args = update.message.text.split(' ', 2)
+        target = args[1]
+        value = "toggle"
+        if len(args) == 3:
+            value = args[2]
+
         userId = update.effective_user.id
-        if not self.validateAccess(userId, cmdString):
+        if not self.validateAccess(userId, target):
             return
 
-        self._cache.setex(cmdString, datetime.timedelta(seconds=10), value='toggle,telegram=' + str(userId))
+        self._cache.setex(target, datetime.timedelta(seconds=10), value=value + ',telegram=' + str(userId))
 
-        self.commandReport(update, context, cmdString)
+        self.commandReport(update, context, target)
 
     def getUsers(self):
         result = []
@@ -213,9 +219,8 @@ class TelegramBot(object):
                     except UnicodeError:
                         pass
 
-                    if valStr is not None and valStr.startswith('text:'):
-                        text = valStr.split(':', 1)[1]
-                        self._updater.bot.send_message(chat_id=userId, text=text)
+                    if valStr is not None:
+                        self._updater.bot.send_message(chat_id=userId, text=valStr)
                     else:
                         self._updater.bot.send_photo(chat_id=userId, photo=val)
         # except:

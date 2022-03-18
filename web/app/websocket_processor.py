@@ -1,5 +1,5 @@
 import queue
-
+import datetime
 
 class WebsocketProcessor(object):
     def __init__(self, redis):
@@ -25,10 +25,10 @@ class WebsocketProcessor(object):
             q.put('updatea')
 
     def processResult(self, id, result):
-        if result == 'None':
+        if result == 'None' or ',' not in result:
             return
-        cmd, value = result.split(',', 1)
-        self._redis.set(id+cmd, value)
+        target, value = result.split(',', 1)
+        self._redis.setex(target, datetime.timedelta(seconds=10), value)
 
     def run(self, ws, id):
         q = queue.Queue()

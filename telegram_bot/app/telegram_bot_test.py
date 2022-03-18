@@ -57,7 +57,7 @@ class TelegramBotTest(unittest.TestCase):
         context.reset_mock()
 
         update.effective_user = normalUser
-        context.args = ['garage_1']
+        update.message.text = '/e garage_1'
         botHandler.executeCommand(update, context)
         redis.setex.assert_called_with('garage_1', ANY, value='toggle,telegram=2')
 
@@ -71,7 +71,7 @@ class TelegramBotTest(unittest.TestCase):
         redis.reset_mock()
 
         update.effective_user = normalUser
-        context.args = ['garage_1']
+        update.message.text = '/e garage_1'
         botHandler.executeCommand(update, context)
         redis.setex.assert_not_called()
 
@@ -88,7 +88,7 @@ class TelegramBotTest(unittest.TestCase):
         self.assertEqual(len(botHandler._commands.getAllCommands()), 0)
 
         update.effective_user = normalUser
-        context.args = ['garage_1']
+        update.message.text = '/e garage_1'
         botHandler.executeCommand(update, context)
         redis.setex.assert_not_called()
         redis.reset_mock()
@@ -102,7 +102,7 @@ class TelegramBotTest(unittest.TestCase):
         context.bot.send_message.assert_called_with(chat_id=1, text="Access rights: (FirstAdmin ) = ADMIN", reply_markup=ANY)
 
         val = Mock()
-        val.decode = Mock(return_value='text:test')
+        val.decode = Mock(return_value='test')
         redis.get = Mock(return_value=val)
         botHandler.checkRedisMessages(None)
         updater.bot.send_message.assert_called_with(chat_id=ANY, text='test')
