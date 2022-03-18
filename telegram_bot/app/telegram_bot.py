@@ -38,10 +38,12 @@ class TelegramBot(object):
     def addCommand(self, update, context):
         args = update.message.text.split(' ')[1:]
         self._commands.add(args[0], args[1], args[2])
+        self.sendText(context, 'Command added.', update.effective_user.id)
 
     def rmCommand(self, update, context):
         cmd = update.message.text.split(' ')[1]
         self._commands.remove(cmd)
+        self.sendText(context, 'Command deleted.', update.effective_user.id)
 
     def getTelegramName(self, telegramUser):
         name = ""
@@ -77,12 +79,11 @@ class TelegramBot(object):
         if not self._users.exists(userId):
             return
 
-        markup = self.createReplyKeyboardMakrup(self._users.getCommands(userId))
-        if self._users.isAdmin(userId):
-            markup.append(['/users'])
+        markup = self.createReplyKeyboardMakrup(userId)
         context.bot.send_message(chat_id=int(userId), text=message, reply_markup=ReplyKeyboardMarkup(markup))
 
-    def createReplyKeyboardMakrup(self, commands):
+    def createReplyKeyboardMakrup(self, userId):
+        commands = self._users.getCommands(userId)
         result = []
 
         commandsByGroup = self.groupCommands(commands)
@@ -92,12 +93,22 @@ class TelegramBot(object):
                 groupCmds.append('/e ' + cmd.getCommand()   )
             result.append(groupCmds)
 
+        if self._users.isAdmin(userId):
+            result.append(['/users'])
+
         return result
 
     def editUserRights(self, update, context, userId, name):
         commandsString = self._users.getCommandsString(userId)
-        context.bot.send_message(chat_id=self._users.getAdminId(), text="Access rights: " + name + " " + commandsString,
-            reply_markup=InlineKeyboardMarkup(self.formatAccessCommands(userId)))
+        markup = None
+        if self._users.isAdmin(userId):
+            commandsString = "ADMIN"
+            markup = ReplyKeyboardMarkup(self.createReplyKeyboardMakrup(self._users.getAdminId()))
+        else:
+            markup = InlineKeyboardMarkup(self.formatAccessCommands(userId))
+            
+        context.bot.send_message(chat_id=self._users.getAdminId(), text="Access rights: (" + name + ") = " + commandsString,
+            reply_markup=markup)
 
     def groupCommands(self, commands):
         commandsByGroup = {}
@@ -116,8 +127,10 @@ class TelegramBot(object):
 
         for group in sorted(commandsByGroup):
             for command in commandsByGroup[group]:
-                result[0].append(InlineKeyboardButton("Add " + command.getName(), callback_data = str(userId) + ",add_" + command.getCommand()))
-                result[1].append(InlineKeyboardButton("Del " + command.getName(), callback_data = str(userId) + ",del_" + command.getCommand()))
+                if not self.validateAccess(userId, command.getCommand()):
+                    result[0].append(InlineKeyboardButton("Add " + command.getName(), callback_data = str(userId) + ",add_" + command.getCommand()))
+                else:
+                    result[0].append(InlineKeyboardButton("Del " + command.getName(), callback_data = str(userId) + ",del_" + command.getCommand()))
         return result
 
     def inlineQuery(self, update, context):
@@ -140,7 +153,7 @@ class TelegramBot(object):
             self.editUserRights(update, context, userId, self._users.getName(userId))
             return
 
-        query.edit_message_text(text="user {} : {}".format(userId, self._users.getName(userId)), 
+        query.edit_message_text(text="Access rights: ({}) = {}".format(self._users.getName(userId), self._users.getCommandsString(userId)), 
             reply_markup=InlineKeyboardMarkup(self.formatAccessCommands(userId)))
         self.sendText(context, 'Select command: ', userId)
 
@@ -164,10 +177,11 @@ class TelegramBot(object):
 
     def executeCommand(self, update, context):
         cmdString = context.args[0]
-        if not self.validateAccess(update.effective_user.id, cmdString):
+        userId = update.effective_user.id
+        if not self.validateAccess(userId, cmdString):
             return
 
-        self._cache.setex(cmdString, datetime.timedelta(seconds=10), value='toggle')
+        self._cache.setex(cmdString, datetime.timedelta(seconds=10), value='toggle,telegram=' + str(userId))
 
         self.commandReport(update, context, cmdString)
 
@@ -185,6 +199,28 @@ class TelegramBot(object):
         query = update.callback_query
         context.bot.send_message(chat_id = self._users.getAdminId(), text="Users: ", reply_markup=InlineKeyboardMarkup(self.getUsers()))
 
+    def checkRedisMessages(self, msg):
+        # try:
+            for userId in self._users.getUserIds():
+                target = 'telegram=' + str(userId)
+                val = self._cache.get(target)
+                if val is not None:
+                    self._cache.delete(target)
+
+                    valStr = None
+                    try:
+                        valStr = val.decode('utf-8')
+                    except UnicodeError:
+                        pass
+
+                    if valStr is not None and valStr.startswith('text:'):
+                        text = valStr.split(':', 1)[1]
+                        self._updater.bot.send_message(chat_id=userId, text=text)
+                    else:
+                        self._updater.bot.send_photo(chat_id=userId, photo=val)
+        # except:
+        #     pass
+
     def run(self):
         self._updater.start_polling()
         self._updater.idle()
@@ -192,4 +228,12 @@ class TelegramBot(object):
 if __name__ == "__main__":
     cache = redis.Redis(host='redis', port=6379)
     bot = TelegramBot(Updater(token=os.environ["TELEGRAM_TOKEN"], use_context=True), Database(), cache)
+
+    pubsub = cache.pubsub()
+    # Set Config redis key expire listener
+    cache.config_set('notify-keyspace-events', 'Exsg')
+    pubsub.psubscribe(**{"__key*__:*": bot.checkRedisMessages})
+    pubsub.run_in_thread(sleep_time=0.01)
+
     bot.run()
+    

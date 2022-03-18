@@ -23,7 +23,8 @@ class TestDatabase(object):
 class TelegramBotTest(unittest.TestCase):
     def testStartAdmin(self):        
         redis = Mock()
-        botHandler = telegram_bot.TelegramBot(Mock(), TestDatabase(), redis)
+        updater = Mock()
+        botHandler = telegram_bot.TelegramBot(updater, TestDatabase(), redis)
         update = Mock()
         adminUser = User(id=1, first_name="FirstAdmin", is_bot=False)
         update.effective_user = adminUser
@@ -43,7 +44,7 @@ class TelegramBotTest(unittest.TestCase):
         update.effective_user = normalUser
         update.message.text = 'start'
         botHandler.startHandler(update, context)
-        context.bot.send_message.assert_called_with(chat_id=1, text="Access rights: User  ", reply_markup=ANY)
+        context.bot.send_message.assert_called_with(chat_id=1, text="Access rights: (User ) = ", reply_markup=ANY)
 
         context.reset_mock()
 
@@ -58,7 +59,7 @@ class TelegramBotTest(unittest.TestCase):
         update.effective_user = normalUser
         context.args = ['garage_1']
         botHandler.executeCommand(update, context)
-        redis.setex.assert_called_with('garage_1', ANY, value='toggle')
+        redis.setex.assert_called_with('garage_1', ANY, value='toggle,telegram=2')
 
         update.effective_user = adminUser
         update.callback_query.data = '2,del_garage_1'
@@ -95,7 +96,16 @@ class TelegramBotTest(unittest.TestCase):
         update.effective_user = adminUser
         botHandler.users(update, context)
         context.bot.send_message.assert_called_with(chat_id=1, text="Users: ", reply_markup=ANY)
+        context.reset_mock()
+        update.callback_query.data = '1,edit_'
+        botHandler.inlineQuery(update, context)
+        context.bot.send_message.assert_called_with(chat_id=1, text="Access rights: (FirstAdmin ) = ADMIN", reply_markup=ANY)
 
+        val = Mock()
+        val.decode = Mock(return_value='text:test')
+        redis.get = Mock(return_value=val)
+        botHandler.checkRedisMessages(None)
+        updater.bot.send_message.assert_called_with(chat_id=ANY, text='test')
 
 
 if __name__ == '__main__':

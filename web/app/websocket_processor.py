@@ -11,7 +11,13 @@ class WebsocketProcessor(object):
         for key in self._redis.scan_iter():
             value = self._redis.get(key)
             if value is not None:
-                redisData += key.decode("utf-8")  + '->' + value.decode("utf-8")  + '<br>'
+                valueStr = "BINARY"
+                try:    
+                    valueStr = value.decode("utf-8")
+                except UnicodeError:
+                    pass
+
+                redisData += key.decode("utf-8")  + '->' + valueStr  + '<br>'
         return redisData
 
     def update(self):
@@ -28,18 +34,19 @@ class WebsocketProcessor(object):
         q = queue.Queue()
         self._qs.append(q)
         while True:
-            item = q.get();
-            if item == None:
-                break
-
             dataToSend = None
 
             if id is not None:
                 if self._redis.exists(id):
                     value = self._redis.get(id)
+                    self._redis.delete(id)
+
                     if value is not None:
-                        dataToSend = value.decode("utf-8")
-                        self._redis.delete(id)
+                        try:
+                            dataToSend = value.decode('utf-8')
+                        except UnicodeError:
+                            pass
+
             else:
                 dataToSend = self.dumpRedis()
 
@@ -52,5 +59,9 @@ class WebsocketProcessor(object):
                     break
                 if result is not None:
                     self.processResult(id, result)
+
+            item = q.get();
+            if item == None:
+                break
 
 

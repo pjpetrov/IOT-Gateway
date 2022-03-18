@@ -14,6 +14,9 @@ services:
       MONGO_USER: "${MONGO_ROOT_USERNAME}"  
       MONGO_PASS: "${MONGO_ROOT_PASSWORD}"
       TELEGRAM_TOKEN: "${TELEGRAM_TOKEN}"
+    depends_on:
+      - "mongo"
+      - "redis"
 
   mongo:
     image: "mongo:focal"
@@ -23,5 +26,10 @@ services:
       MONGO_INITDB_ROOT_USERNAME: "${MONGO_ROOT_USERNAME}"
       MONGO_INITDB_ROOT_PASSWORD: "${MONGO_ROOT_PASSWORD}"
 
+  image_downloader:
+    build: image_downloader/
+    depends_on:
+      - "redis"
+
 volumes:
-  mongo_data
+  mongo_data:

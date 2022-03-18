@@ -16,6 +16,9 @@ services:
       MONGO_PASS: "${MONGO_ROOT_PASSWORD}"
       TELEGRAM_TOKEN: "${TELEGRAM_TOKEN}"
     entrypoint: python3 /app/telegram_bot.py
+    depends_on:
+      - "mongo"
+      - "redis"
 
   mongo:
     image: "mongo:focal"
@@ -28,6 +31,12 @@ services:
       - 27017:27017
     expose:
       - 27017:27017
+
+  image_downloader:
+    build: image_downloader/
+    entrypoint: python3 /app/img.py
+    depends_on:
+      - "redis"
 
 volumes:
   mongo_data:
