@@ -36,11 +36,17 @@ class TelegramBot(object):
         self._dispatcher.add_handler(CallbackQueryHandler(self.inlineQuery))
 
     def addCommand(self, update, context):
+        if not self.validateAdminUser(update):
+            return
+
         args = update.message.text.split(' ')[1:]
         self._commands.add(args[0], args[1], args[2])
         self.sendText(context, 'Command added.', update.effective_user.id)
 
     def rmCommand(self, update, context):
+        if not self.validateAdminUser(update):
+            return
+
         cmd = update.message.text.split(' ')[1]
         self._commands.remove(cmd)
         self.sendText(context, 'Command deleted.', update.effective_user.id)
@@ -134,8 +140,9 @@ class TelegramBot(object):
         return result
 
     def inlineQuery(self, update, context):
-        if not self._users.isAdmin(update.effective_user.id):
+        if not self.validateAdminUser(update):
             return
+
         query = update.callback_query
 
         userIdStr, actionCommand = query.data.split(',')
@@ -162,13 +169,21 @@ class TelegramBot(object):
             self.sendText(context, self._users.getName(update.effective_user.id) + " executes: " + title, self._users.getAdminId())
 
     def users(self, update, context):
-        if not self._users.isAdmin(update.effective_user.id):
+        if not self.validateAdminUser(update):
             return
+
         self.usersMenu(update, context)
+
+    def validateAdminUser(self, update):
+        userId = update.effective_user.id
+        if not self._users.exists(userId) or self._users.isBlacklisted(userId):
+            return False
+
+        return self._users.isAdmin(userId)
 
     def validateAccess(self, userId, cmdString):
         if not self._users.exists(userId) or self._users.isBlacklisted(userId):
-            return
+            return False
 
         commands = self._users.getCommands(userId)
         for command in commands:
@@ -177,13 +192,16 @@ class TelegramBot(object):
         return False
 
     def executeCommand(self, update, context):
+        userId = update.effective_user.id
+        if not self._users.exists(userId):
+            return
+            
         args = update.message.text.split(' ', 2)
         target = args[1]
         value = "toggle"
         if len(args) == 3:
             value = args[2]
 
-        userId = update.effective_user.id
         if not self.validateAccess(userId, target):
             return
 
@@ -199,7 +217,7 @@ class TelegramBot(object):
         return result
 
     def usersMenu(self, update, context):
-        if not self._users.isAdmin(update.effective_user.id):
+        if not self.validateAdminUser(update):
             return
 
         query = update.callback_query
