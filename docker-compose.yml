@@ -1,14 +1,17 @@
 version: "3.9"
 services:
   web:
+    restart: unless-stopped
     build: web/
     ports:
       - "88:8080"
 
   redis:
+    restart: unless-stopped
     image: "redis:bullseye"
 
   telegram_bot:
+    restart: unless-stopped
     build: telegram_bot/
     environment:
       MONGO_USER: "${MONGO_ROOT_USERNAME}"  
@@ -19,6 +22,7 @@ services:
       - "redis"
 
   mongo:
+    restart: unless-stopped
     image: "mongo:focal"
     volumes:
       - mongo_data:/data/db
@@ -27,6 +31,7 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: "${MONGO_ROOT_PASSWORD}"
 
   image_downloader:
+    restart: unless-stopped
     build: image_downloader/
     depends_on:
       - "redis"
