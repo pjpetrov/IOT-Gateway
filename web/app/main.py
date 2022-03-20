@@ -4,8 +4,14 @@ import redis
 import flask_sock
 from flask import Flask, render_template
 import websocket_processor
-    
+import logging
+
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                            level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
+app.config['SOCK_SERVER_OPTIONS'] = {'ping_interval': 25}
 sock = flask_sock.Sock(app)
 
 cache = redis.Redis(host='redis', port=6379)
@@ -47,6 +53,7 @@ def client(id):
 
 @sock.route("/redis/<id>")
 def redis_id(ws, id):
+    logging.info("Websocket client connected: {}".format(id))
     wsProcessor.run(ws, id)
 
 @sock.route("/redis")

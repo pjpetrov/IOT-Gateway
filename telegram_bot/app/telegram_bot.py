@@ -195,7 +195,7 @@ class TelegramBot(object):
         userId = update.effective_user.id
         if not self._users.exists(userId):
             return
-            
+
         args = update.message.text.split(' ', 2)
         target = args[1]
         value = "toggle"
