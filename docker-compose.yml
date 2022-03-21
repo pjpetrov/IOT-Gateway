@@ -5,6 +5,8 @@ services:
     build: web/
     ports:
       - "88:8080"
+    depends_on:
+      - "redis"
 
   redis:
     restart: unless-stopped
